@@ -1,0 +1,164 @@
+import { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Plus, Calendar, Clock } from "lucide-react";
+import { format, isThisWeek, parseISO } from "date-fns";
+import ClientCard from "../components/dashboard/ClientCard";
+import AddClientDialog from "../components/dashboard/AddClientDialog";
+
+export default function Dashboard() {
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showAddDialog, setShowAddDialog] = useState(false);
+
+  const { data: clients = [], isLoading } = useQuery({
+    queryKey: ['clients'],
+    queryFn: () => base44.entities.Client.list('-updated_date'),
+  });
+
+  const { data: allTasks = [] } = useQuery({
+    queryKey: ['tasks'],
+    queryFn: () => base44.entities.Task.list('-due_date'),
+  });
+
+  const filteredClients = statusFilter === "all" 
+    ? clients 
+    : clients.filter(c => c.status === statusFilter);
+
+  const getClientStats = (clientId) => {
+    const clientTasks = allTasks.filter(t => t.client_id === clientId);
+    const nextTask = clientTasks.find(t => t.status !== 'done');
+    const completedCount = clientTasks.filter(t => t.status === 'done').length;
+    const totalCount = clientTasks.length;
+    
+    return { nextTask, completedCount, totalCount };
+  };
+
+  // Get upcoming deadlines this week
+  const upcomingDeadlines = allTasks
+    .filter(task => {
+      if (!task.due_date || task.status === 'done') return false;
+      try {
+        return isThisWeek(parseISO(task.due_date));
+      } catch {
+        return false;
+      }
+    })
+    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+
+  // Calculate total hours
+  const totalHours = allTasks.reduce((sum, task) => sum + (task.hours_spent || 0), 0);
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-semibold text-gray-900 mb-2">Dashboard</h1>
+        <p className="text-gray-600">Manage your Upwork projects and tasks</p>
+      </div>
+
+      {/* Stats Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="text-3xl font-semibold text-gray-900">{clients.filter(c => c.status === 'active').length}</div>
+          <div className="text-sm text-gray-500 mt-1">Active Clients</div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="text-3xl font-semibold text-indigo-600">{allTasks.filter(t => t.status !== 'done').length}</div>
+          <div className="text-sm text-gray-500 mt-1">Pending Tasks</div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="text-3xl font-semibold text-gray-900">{allTasks.filter(t => t.status === 'done').length}</div>
+          <div className="text-sm text-gray-500 mt-1">Completed Tasks</div>
+        </div>
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center gap-2 text-3xl font-semibold text-gray-900">
+            <Clock className="w-7 h-7 text-indigo-600" />
+            {totalHours}h
+          </div>
+          <div className="text-sm text-gray-500 mt-1">Total Hours</div>
+        </div>
+      </div>
+
+      {/* Upcoming Deadlines */}
+      {upcomingDeadlines.length > 0 && (
+        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-lg border border-indigo-200 p-6 mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Upcoming This Week</h2>
+          </div>
+          <div className="space-y-3">
+            {upcomingDeadlines.slice(0, 5).map(task => {
+              const client = clients.find(c => c.id === task.client_id);
+              return (
+                <div key={task.id} className="bg-white rounded-lg p-4 border border-indigo-100">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900">{task.title}</h3>
+                      <p className="text-sm text-gray-500 mt-1">{client?.name || 'Unknown Client'}</p>
+                    </div>
+                    <div className="text-sm font-medium text-indigo-700">
+                      {format(parseISO(task.due_date), "EEE, MMM d")}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Filters & Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex gap-2">
+          {["all", "active", "pending", "completed"].map((filter) => (
+            <Button
+              key={filter}
+              onClick={() => setStatusFilter(filter)}
+              variant={statusFilter === filter ? "default" : "outline"}
+              size="sm"
+              className={statusFilter === filter ? "bg-indigo-600 hover:bg-indigo-700" : ""}
+            >
+              {filter.charAt(0).toUpperCase() + filter.slice(1)}
+            </Button>
+          ))}
+        </div>
+        
+        <Button
+          onClick={() => setShowAddDialog(true)}
+          className="bg-indigo-600 hover:bg-indigo-700"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          New Client
+        </Button>
+      </div>
+
+      {/* Client Grid */}
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="text-gray-500">Loading clients...</div>
+        </div>
+      ) : filteredClients.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-lg border border-gray-200 p-8">
+          <p className="text-lg font-medium text-gray-900">No clients found</p>
+          <p className="text-gray-500 mt-2">Add your first client to get started</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredClients.map((client) => (
+            <ClientCard 
+              key={client.id} 
+              client={client} 
+              stats={getClientStats(client.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      <AddClientDialog 
+        open={showAddDialog} 
+        onClose={() => setShowAddDialog(false)} 
+      />
+    </div>
+  );
+}
