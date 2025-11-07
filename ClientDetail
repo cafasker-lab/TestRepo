@@ -1,0 +1,164 @@
+import { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import TaskBoard from "../components/client/TaskBoard";
+import TaskForm from "../components/client/TaskForm";
+import NotesSection from "../components/client/NotesSection";
+import ClientInfo from "../components/client/ClientInfo";
+import FilesSection from "../components/client/FilesSection";
+import TimelineView from "../components/client/TimelineView";
+
+export default function ClientDetail() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const urlParams = new URLSearchParams(window.location.search);
+  const clientId = urlParams.get('id');
+
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
+
+  const { data: client, isLoading: clientLoading } = useQuery({
+    queryKey: ['client', clientId],
+    queryFn: async () => {
+      const clients = await base44.entities.Client.list();
+      return clients.find(c => c.id === clientId);
+    },
+    enabled: !!clientId,
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks', clientId],
+    queryFn: () => base44.entities.Task.filter({ client_id: clientId }, '-due_date'),
+    enabled: !!clientId,
+  });
+
+  const { data: notes = [] } = useQuery({
+    queryKey: ['notes', clientId],
+    queryFn: () => base44.entities.Note.filter({ client_id: clientId }, '-created_date'),
+    enabled: !!clientId,
+  });
+
+  const { data: files = [] } = useQuery({
+    queryKey: ['files', clientId],
+    queryFn: () => base44.entities.ClientFile.filter({ client_id: clientId }, '-created_date'),
+    enabled: !!clientId,
+  });
+
+  const deleteClientMutation = useMutation({
+    mutationFn: (id) => base44.entities.Client.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      navigate(createPageUrl("Dashboard"));
+    },
+  });
+
+  if (clientLoading) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-gray-500">Loading client...</div>
+      </div>
+    );
+  }
+
+  if (!client) {
+    return (
+      <div className="text-center py-12">
+        <div className="bg-white rounded-lg border border-gray-200 p-8 inline-block">
+          <p className="text-lg font-medium text-gray-900">Client not found</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <Button
+          onClick={() => navigate(createPageUrl("Dashboard"))}
+          variant="outline"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back
+        </Button>
+
+        <Button
+          onClick={() => {
+            if (confirm("Are you sure you want to delete this client and all associated tasks?")) {
+              deleteClientMutation.mutate(clientId);
+            }
+          }}
+          variant="destructive"
+        >
+          <Trash2 className="w-4 h-4 mr-2" />
+          Delete Client
+        </Button>
+      </div>
+
+      {/* Client Info */}
+      <ClientInfo client={client} tasks={tasks} />
+
+      {/* Tabs */}
+      <Tabs defaultValue="board" className="mt-8">
+        <TabsList className="mb-6">
+          <TabsTrigger value="board">Task Board</TabsTrigger>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="files">Files</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="board">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold text-gray-900">Tasks</h2>
+            <Button
+              onClick={() => {
+                setEditingTask(null);
+                setShowTaskForm(true);
+              }}
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Task
+            </Button>
+          </div>
+
+          <TaskBoard 
+            tasks={tasks} 
+            clientId={clientId}
+            onEditTask={(task) => {
+              setEditingTask(task);
+              setShowTaskForm(true);
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="timeline">
+          <TimelineView tasks={tasks} />
+        </TabsContent>
+
+        <TabsContent value="files">
+          <FilesSection clientId={clientId} files={files} />
+        </TabsContent>
+
+        <TabsContent value="notes">
+          <NotesSection clientId={clientId} notes={notes} />
+        </TabsContent>
+      </Tabs>
+
+      {/* Task Form Dialog */}
+      {showTaskForm && (
+        <TaskForm
+          clientId={clientId}
+          task={editingTask}
+          onClose={() => {
+            setShowTaskForm(false);
+            setEditingTask(null);
+          }}
+        />
+      )}
+ 
