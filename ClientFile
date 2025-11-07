@@ -1,0 +1,31 @@
+{
+  "name": "ClientFile",
+  "type": "object",
+  "properties": {
+    "file_url": {
+      "type": "string",
+      "description": "URL of the uploaded file"
+    },
+    "file_name": {
+      "type": "string",
+      "description": "Original file name"
+    },
+    "file_type": {
+      "type": "string",
+      "description": "Type of file"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Associated client ID"
+    },
+    "description": {
+      "type": "string",
+      "description": "File description"
+    }
+  },
+  "required": [
+    "file_url",
+    "file_name",
+    "client_id"
+  ]
+}
