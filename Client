@@ -1,0 +1,47 @@
+{
+  "name": "Client",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Client name"
+    },
+    "country": {
+      "type": "string",
+      "description": "Client country"
+    },
+    "contact": {
+      "type": "string",
+      "description": "Contact person"
+    },
+    "project_name": {
+      "type": "string",
+      "description": "Current project name"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "pending",
+        "completed"
+      ],
+      "default": "active",
+      "description": "Client status"
+    },
+    "email": {
+      "type": "string",
+      "description": "Contact email"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Contact phone"
+    }
+  },
+  "required": [
+    "name",
+    "country",
+    "contact",
+    "project_name",
+    "status"
+  ]
+}
