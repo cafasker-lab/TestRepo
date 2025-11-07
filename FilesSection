@@ -1,0 +1,158 @@
+import { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Upload, File, Trash2, ExternalLink, Image, FileText } from "lucide-react";
+import { format } from "date-fns";
+
+export default function FilesSection({ clientId, files }) {
+  const queryClient = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const [description, setDescription] = useState("");
+
+  const uploadFileMutation = useMutation({
+    mutationFn: async (file) => {
+      setUploading(true);
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      
+      return base44.entities.ClientFile.create({
+        file_url,
+        file_name: file.name,
+        file_type: file.type,
+        client_id: clientId,
+        description: description || ""
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['files', clientId] });
+      setDescription("");
+      setUploading(false);
+    },
+    onError: () => {
+      setUploading(false);
+    }
+  });
+
+  const deleteFileMutation = useMutation({
+    mutationFn: (id) => base44.entities.ClientFile.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['files', clientId] });
+    },
+  });
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadFileMutation.mutate(file);
+    }
+  };
+
+  const getFileIcon = (fileType) => {
+    if (fileType?.startsWith('image/')) return <Image className="w-5 h-5 text-indigo-600" />;
+    if (fileType?.includes('pdf')) return <FileText className="w-5 h-5 text-red-600" />;
+    return <File className="w-5 h-5 text-gray-600" />;
+  };
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900">Files & Documents</h2>
+          <p className="text-sm text-gray-500 mt-1">Screenshots, reports, and project files</p>
+        </div>
+      </div>
+
+      {/* Upload Section */}
+      <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-lg border-2 border-dashed border-indigo-200 p-6 mb-6">
+        <div className="flex flex-col items-center gap-4">
+          <Upload className="w-8 h-8 text-indigo-600" />
+          <div className="text-center">
+            <p className="font-medium text-gray-900 mb-1">Upload a file</p>
+            <p className="text-sm text-gray-500">Screenshots, PDFs, images, or documents</p>
+          </div>
+          
+          <Input
+            type="text"
+            placeholder="Optional: Add a description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="max-w-md"
+          />
+
+          <div>
+            <input
+              type="file"
+              onChange={handleFileSelect}
+              className="hidden"
+              disabled={uploading}
+              id="file-upload"
+            />
+            <label htmlFor="file-upload">
+              <Button
+                type="button"
+                disabled={uploading}
+                className="bg-indigo-600 hover:bg-indigo-700 cursor-pointer"
+                onClick={() => document.getElementById('file-upload')?.click()}
+              >
+                {uploading ? "Uploading..." : "Choose File"}
+              </Button>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* Files List */}
+      <div className="space-y-3">
+        {files.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <File className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>No files uploaded yet</p>
+          </div>
+        ) : (
+          files.map((file) => (
+            <div
+              key={file.id}
+              className="flex items-center gap-4 bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+            >
+              <div className="flex-shrink-0">
+                {getFileIcon(file.file_type)}
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-gray-900 truncate">{file.file_name}</h4>
+                {file.description && (
+                  <p className="text-sm text-gray-600 truncate">{file.description}</p>
+                )}
+                <p className="text-xs text-gray-400 mt-1">
+                  {format(new Date(file.created_date), "MMM d, yyyy 'at' h:mm a")}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => window.open(file.file_url, '_blank')}
+                  size="sm"
+                  variant="outline"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (confirm("Delete this file?")) {
+                      deleteFileMutation.mutate(file.id);
+                    }
+                  }}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
