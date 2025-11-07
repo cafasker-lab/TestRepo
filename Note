@@ -1,0 +1,28 @@
+{
+  "name": "Note",
+  "type": "object",
+  "properties": {
+    "content": {
+      "type": "string",
+      "description": "Note content"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Associated client ID"
+    },
+    "note_type": {
+      "type": "string",
+      "enum": [
+        "meeting",
+        "call",
+        "general"
+      ],
+      "default": "general",
+      "description": "Type of note"
+    }
+  },
+  "required": [
+    "content",
+    "client_id"
+  ]
+}
