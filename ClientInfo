@@ -1,0 +1,112 @@
+import { MapPin, Briefcase, Mail, Phone, User, Clock, CheckCircle2 } from "lucide-react";
+
+const statusColors = {
+  active: "bg-green-50 text-green-700 border-green-200",
+  pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
+  completed: "bg-gray-100 text-gray-700 border-gray-200"
+};
+
+function getCountryFlag(country) {
+  const flags = {
+    "Kuwait": "🇰🇼",
+    "USA": "🇺🇸",
+    "Australia": "🇦🇺",
+    "Saudi Arabia": "🇸🇦",
+    "United States": "🇺🇸"
+  };
+  return flags[country] || "🌍";
+}
+
+export default function ClientInfo({ client, tasks = [] }) {
+  const totalHours = tasks.reduce((sum, task) => sum + (task.hours_spent || 0), 0);
+  const completedTasks = tasks.filter(t => t.status === 'done').length;
+  const totalTasks = tasks.length;
+
+  return (
+    <div className="bg-white rounded-lg border border-gray-200 p-8 mb-8">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-semibold text-gray-900 mb-3">{client.name}</h1>
+          <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${statusColors[client.status]}`}>
+            {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
+          </div>
+        </div>
+        <div className="text-5xl">{getCountryFlag(client.country)}</div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
+          <div className="flex items-center gap-2 mb-1">
+            <Clock className="w-4 h-4 text-indigo-600" />
+            <span className="text-xs font-medium text-indigo-700 uppercase">Total Hours</span>
+          </div>
+          <p className="text-2xl font-semibold text-gray-900">{totalHours}h</p>
+        </div>
+
+        <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+          <div className="flex items-center gap-2 mb-1">
+            <CheckCircle2 className="w-4 h-4 text-green-600" />
+            <span className="text-xs font-medium text-green-700 uppercase">Completed</span>
+          </div>
+          <p className="text-2xl font-semibold text-gray-900">{completedTasks}/{totalTasks}</p>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <Briefcase className="w-4 h-4 text-gray-400" />
+            <span className="text-xs font-medium text-gray-500 uppercase">Active Tasks</span>
+          </div>
+          <p className="text-2xl font-semibold text-gray-900">{tasks.filter(t => t.status !== 'done').length}</p>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <div className="flex items-center gap-2 mb-1">
+            <MapPin className="w-4 h-4 text-gray-400" />
+            <span className="text-xs font-medium text-gray-500 uppercase">Location</span>
+          </div>
+          <p className="font-semibold text-gray-900">{client.country}</p>
+        </div>
+      </div>
+
+      {/* Contact Details */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <User className="w-4 h-4 text-gray-400" />
+            <span className="text-xs font-medium text-gray-500 uppercase">Contact</span>
+          </div>
+          <p className="font-medium text-gray-900">{client.contact}</p>
+        </div>
+
+        <div className="bg-gray-50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Briefcase className="w-4 h-4 text-gray-400" />
+            <span className="text-xs font-medium text-gray-500 uppercase">Project</span>
+          </div>
+          <p className="font-medium text-gray-900">{client.project_name}</p>
+        </div>
+
+        {client.email && (
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Mail className="w-4 h-4 text-gray-400" />
+              <span className="text-xs font-medium text-gray-500 uppercase">Email</span>
+            </div>
+            <p className="font-medium text-gray-900 text-sm break-all">{client.email}</p>
+          </div>
+        )}
+
+        {client.phone && (
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Phone className="w-4 h-4 text-gray-400" />
+              <span className="text-xs font-medium text-gray-500 uppercase">Phone</span>
+            </div>
+            <p className="font-medium text-gray-900">{client.phone}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
